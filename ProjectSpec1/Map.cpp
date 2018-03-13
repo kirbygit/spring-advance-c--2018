@@ -1,3 +1,13 @@
+//====================================================
+//  Map.cpp                                         //
+//  Class: Advance C++                              //
+//  Professor: Solomon L. Russell                   //
+//  Project#: Spec 1                                //
+//  OS Used: MacOS(Xcode)/Windows(Visual Studio)    //
+//  Last successful run: 3/12/18                    //
+//  Created by Kirby James Fernandez on 3/04/18.    //
+//  Copyright © 2018 oc. All rights reserved.       //
+//====================================================
 #include "Map.hpp"
 #include <type_traits>
 #include <iostream>
@@ -31,36 +41,51 @@ void ThisFunctionWillNeverBeCalled()
 }
 
 // Constructor initialization list
-Map::Node::Node(Node * nptr, Node * pptr, KeyType k, ValueType v) : next(nptr), prev(pptr), key(k), value(v)
+Map::Map() : element_size(0)
 {
-    
+    // create dummy node
+    Head = new Node;
+    Head->next = Head;
+    Head->prev = Head;
 }
 
 // Copy Constructor
-Map::Map(const Map &New)
+Map::Map(const Map& other) : element_size(other.element_size)
 {
-    if (this == &New)
+    // Create a dummy node and set the previous node to its Head
+    Head = new Node;
+    Node* prev = Head;
+    
+    // this iteration will assign Head next of the copied one of the previous node
+    for (Node* ptr = other.Head->next; ptr != other.Head; ptr = ptr->next)
     {
-        exit(0); // self copy is not allowed
+        // Create a copy of the node p points to
+        Node* newPtr = new Node;
+        newPtr->key = ptr->key;
+        newPtr->value = ptr->value;
+        
+        // Connect the new node to the previous one
+        newPtr->prev = prev;
+        prev->next = newPtr;
+        
+        // Reset prev to last node created
+        prev = newPtr;
     }
-    copy(New);
+    
+    // Connect last node created to m_head
+    Head->prev = prev;
+    prev->next = Head;
 }
 
 // Assignment Operator
-Map& Map::operator= (const Map &New)
+Map& Map::operator=(const Map& other)
 {
-    if(this != &New)
+    if (this != &other)
     {
-        destroy();
-        copy(New);
+        Map temp(other);
+        swap(temp);
     }
     return *this;
-}
-
-Map::Map()
-{
-    Head = NULL;
-    element_size = 0;
 }
 
 bool Map::empty() const
@@ -79,26 +104,17 @@ int Map::size() const
 
 bool Map::insert(const KeyType& key, const ValueType& value)
 {
-    Node* n = new Node(nullptr, nullptr, "-", 0.0);
+    Node* n = new Node;
     
     if (!contains(key)) {
-        if (empty())
-        {
-            n->next = NULL;
-            n->prev = NULL;
-            
-            Head = n;
-        }
-        else
-        {
-            n->next = Head;
-            n->prev = NULL;
-            Head->prev = n;
-            Head = n;
-        }
-        
         n->key = key;
         n->value = value;
+        
+        n->prev = Head->prev;
+        n->prev->next = n;
+        
+        n->next = Head;
+        Head->prev = n;
         element_size++;
         
         return true;
@@ -109,6 +125,9 @@ bool Map::insert(const KeyType& key, const ValueType& value)
     }
 }
 
+// iteration is checking if current key is the actual key in the map
+// then set its  value to its current value in the map and return true
+// otherwise return false
 bool Map::update(const KeyType& key, const ValueType& value)
 {
     Node* n;
@@ -123,6 +142,10 @@ bool Map::update(const KeyType& key, const ValueType& value)
     return false;
 }
 
+// check condition if the key is in the map
+// update its key and value pair and return true
+// otherwise if it doesn't contain the key then insert key and value pair and still return true
+// since this function always return true
 bool Map::insertOrUpdate(const KeyType& key, const ValueType& value)
 {
     if (contains(key))
@@ -137,10 +160,15 @@ bool Map::insertOrUpdate(const KeyType& key, const ValueType& value)
     }
 }
 
+// iterate each until current key is found in its map
+// check the previous node if its not null and set its Head to the next node
+// else if the next node is null then set next and previous to null
+// lastly set node previous to next to next and next to previous to previous
+// delete the node and decrement and return true otherwise false
 bool Map::erase(const KeyType& key)
 {
     Node* n;
-    
+
     for (n = Head; n != NULL; n = n->next)
     {
         if (n->key == key) {
@@ -167,7 +195,8 @@ bool Map::contains(const KeyType& key) const
 {
     Node* n;
     
-    for (n = Head; n != NULL; n = n->next)
+    // if current key is the key in the map then return true otherwise false
+    for (n = Head->next; n != Head; n = n->next)
     {
         if (n->key == key)
         {
@@ -179,81 +208,75 @@ bool Map::contains(const KeyType& key) const
 
 bool Map::get(const KeyType& key, ValueType& value) const
 {
-    Node* n = new Node(nullptr, nullptr, "-", 0.0);
-    
+    Node* n = new Node;
+    // key found in its map set value to current value and return true otherwise return false
     if (contains(key))
     {
         value = n->value;
-        
         return true;
     }
     return false;
 }
 
+//
 bool Map::get(int i, KeyType& key, ValueType& value) const
 {
-    Node* n;
-
-    if (i >= 0  && i < size())
+    if (i < 0 || i >= element_size) // if this condition is being met it returns false
     {
-        for (n = Head; n != NULL; n = n->next)
-        {
-            key = n->key;
-            value = n->value;
-        }
-       return true;
+        return false;
     }
-    return false;
+    
+    Node* n;
+    // track the position near the head
+    if (i < element_size / 2)
+    {
+        n = Head->next;
+        for (int j = 0; j != i; j++)
+            n = n->next;
+    }
+    // track the position near its tail
+    else
+    {
+        n = Head->prev;
+        for (int j = element_size - 1; j != i; j--)
+        {
+            n = n->prev;
+        }
+    }
+    
+    key = n->key;
+    value = n->value;
+    return true;
 }
 
 void Map::swap(Map& other)
 {
-    Map temp = other;
-    other.copy(*this);
-    this->copy(temp);
-}
-
-// copy function
-void Map::copy(const Map &New)
-{
-    Node* PresentNext = New.Head->next;
-    Node* PresentPrev = New.Head->prev;
-    Node* IterateNext = Head = new Node(nullptr, nullptr, "-", 0.0);
-    Node* IteratePrev = Head = new Node(nullptr, nullptr, "-", 0.0);
-    while (PresentNext != nullptr && PresentPrev != nullptr)
-    {
-        // create a copy of node pointed to by current and link up
-        IterateNext->next = new Node(nullptr, nullptr, PresentNext->key, PresentNext->value);
-        IteratePrev->prev = new Node(nullptr, nullptr, PresentPrev->key, PresentPrev->value);
-        
-        // update pointers
-        PresentNext = PresentNext->next;
-        PresentPrev = PresentPrev->prev;
-        IterateNext = IterateNext->next;
-        IteratePrev = IteratePrev->prev;
-    }
-}
-
-// destroy function
-void Map::destroy()
-{
-    Node* Present = Head;
-    while (Present != nullptr)
-    {
-        Node* save = Present;
-        Present = Present->next;
-        delete save;
-    }
+    // swap its pointers
+    Node* temp = Head;
+    Head = other.Head;
+    other.Head = temp;
+    
+    // swap its sizes
+    int t = element_size;
+    element_size = other.element_size;
+    other.element_size = t;
 }
 
 // virtual deconstructor
 Map::~Map()
 {
-    destroy();
+    // completely deallocate all dummy and non-dummy nodes being allocated
+    for (Node* ptr = Head->prev; element_size >= 0; element_size--)
+    {
+        Node* toDelete = ptr;
+        ptr = ptr->prev;
+        delete toDelete;
+    }
 }
 
 void test()
 {
+    // default constructor
     Map m;
     assert(m.insert("Fred", 123));
     assert(m.insert("Ethel", 456));
@@ -271,13 +294,11 @@ void test()
 
 int main()
 {
+    
     Map m;
     m.insert("A", 10);
     m.insert("B", 44);
     m.insert("C", 10);
-    m.erase("A");
-    m.insertOrUpdate("A", 20);
-    m.update("A", 30);
     string all;
     double total = 0;
     for (int n = 0; n < m.size(); n++)
@@ -288,7 +309,36 @@ int main()
         all += k;
         total += v;
     }
-    m.erase("A");
-    cout << all << total << endl;
+    cout << all << total <<endl;
+    
+    Map gpas;
+    gpas.insert("Fred", 2.956);
+    gpas.insert("Ethel", 3.538);
+    double v;
+    string k1;
+    assert(gpas.get(1, k1, v) && (k1 == "Fred" || k1 == "Ethel"));
+    string k2;
+    assert(gpas.get(1, k2, v) && k2 == k1);
+    
+    Map gpas2;
+    gpas2.insert("Fred", 2.956);
+    assert(!gpas2.contains(""));
+    gpas2.insert("Ethel", 3.538);
+    gpas2.insert("", 4.000);
+    gpas2.insert("Lucy", 2.956);
+    assert(gpas2.contains(""));
+    gpas2.erase("Fred");
+    assert(gpas2.size() == 3 && gpas2.contains("Lucy") && gpas2.contains("Ethel") &&
+           gpas2.contains(""));
+    
+    Map m1;
+    m1.insert("Fred", 2.956);
+    Map m2;
+    m2.insert("Ethel", 3.538);
+    m2.insert("Lucy", 2.956);
+    m1.swap(m2);
+    assert(m1.size() == 2 && m1.contains("Ethel") && m1.contains("Lucy") &&
+           m2.size() == 1 && m2.contains("Fred"));
 }
+
 
